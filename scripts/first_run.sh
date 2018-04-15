@@ -78,6 +78,9 @@ if test "%PI_MAILGUN_API_KEY%" && test "%PI_MAILGUN_DOMAIN%" && test "%PI_EMAIL_
     -F text="New %PI_USERNAME%@${PI_CONFIG_HOSTNAME} setup on: ${PI_IP_ADDRESS}"
 fi
 
+apt-get autoremove -y
+apt-get autoclean -y
+
 rm -Rf ${DATA_DIR}
 
 rm -- "$0"
