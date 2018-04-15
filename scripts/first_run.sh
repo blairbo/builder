@@ -21,7 +21,7 @@ rm /etc/sudoers.d/010_pi-nopasswd
 deluser -remove-home pi
 
 # Change user and group ID
-usermod -u 1000 %PI_USERNAME%
+usermod -u 1000 %PI_USERNAME% --shell /bin/bash
 groupmod -g 1000 %PI_USERNAME%
 
 # Configure hostname
