@@ -32,7 +32,7 @@ PI_CONFIG_HOSTNAME="%PI_HOSTNAME%-${randomWord1}-${randomWord2}"
 echo "${PI_CONFIG_HOSTNAME}" > "/etc/hostname"
 OLD_HOST="raspberrypi"
 sed -i "s/$OLD_HOST/$PI_CONFIG_HOSTNAME/g" "/etc/hosts"
-/etc/init.d/hostname.sh
+hostnamectl set-hostname ${PI_CONFIG_HOSTNAME}
 
 # Configure the memory split
 if test "%PI_GPU_MEMORY%" = "16" || test "%PI_GPU_MEMORY%" = "32" || test "%PI_GPU_MEMORY%" = "64" || test "%PI_GPU_MEMORY%" = "128" || test "%PI_GPU_MEMORY%" = "256"; then
