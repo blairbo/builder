@@ -7,6 +7,7 @@ RESULT_FILE="${CACHE_DIR}/result"
 SETTINGS_FILE="./settings.sh"
 BOOT_DIR="/media/rpi_boot"
 ROOT_DIR="/media/rpi_root"
+SETUP_DIR="/setup"
 UNZIP_TARGET="${CACHE_DIR}/os.img"
 
 download () {
@@ -101,6 +102,9 @@ sleep 5
 # Enable SSH
 touch ${BOOT_DIR}/ssh
 
+# Create the setup directory
+mkdir -p ${ROOT_DIR}${SETUP_DIR}
+
 # Configure WiFi - if required
 if [[ "${PI_WIFI_SSID}" && "${PI_WIFI_PASS}" ]]; then
   if ! (grep -q "ssid=" "${ROOT_DIR}/etc/wpa_supplicant/wpa_supplicant.conf"); then
@@ -111,27 +115,16 @@ fi
 # Set the first boot script
 if ! (grep -q "./scripts/first_run.sh" "${ROOT_DIR}/etc/rc.local"); then
   sed -i '$ d' "${ROOT_DIR}/etc/rc.local"
-  printf "if [ -f /first_run.sh ]; then\n  printf 'Setting up the Pi'\n  sh /first_run.sh\n\n  printf 'Pi setup'\nfi\n\nexit 0" >> "${ROOT_DIR}/etc/rc.local"
+  printf "if [ -f ${SETUP_DIR}/first_run.sh ]; then\n  printf 'Setting up the Pi'\n  SETUP_DIR=\"${SETUP_DIR}\" SETTINGS_FILES=\"${SETUP_DIR}${SETTINGS_FILE}\" sh ${SETUP_DIR}/first_run.sh\n\n  printf 'Pi setup'\nfi\n\nexit 0" >> "${ROOT_DIR}/etc/rc.local"
 fi
 
-cp ./scripts/first_run.sh "${ROOT_DIR}/first_run.sh"
-sed -i "s/%PI_HOSTNAME%/$PI_HOSTNAME/g" "${ROOT_DIR}/first_run.sh"
-sed -i "s/%PI_USERNAME%/$PI_USERNAME/g" "${ROOT_DIR}/first_run.sh"
-sed -i "s/%PI_PASSWORD%/$PI_PASSWORD/g" "${ROOT_DIR}/first_run.sh"
-sed -i "s/%PI_WIFI_SSID%/$PI_WIFI_SSID/g" "${ROOT_DIR}/first_run.sh"
-sed -i "s/%PI_MAILGUN_API_KEY%/$PI_MAILGUN_API_KEY/g" "${ROOT_DIR}/first_run.sh"
-sed -i "s/%PI_MAILGUN_DOMAIN%/$PI_MAILGUN_DOMAIN/g" "${ROOT_DIR}/first_run.sh"
-sed -i "s/%PI_EMAIL_ADDRESS%/$PI_EMAIL_ADDRESS/g" "${ROOT_DIR}/first_run.sh"
-sed -i "s/%PI_INSTALL_DOCKER%/$PI_INSTALL_DOCKER/g" "${ROOT_DIR}/first_run.sh"
-sed -i "s/%PI_GPU_MEMORY%/$PI_GPU_MEMORY/g" "${ROOT_DIR}/first_run.sh"
-sed -i "s/%PI_IP_ADDRESS_RANGE_START%/$PI_IP_ADDRESS_RANGE_START/g" "${ROOT_DIR}/first_run.sh"
-sed -i "s/%PI_IP_ADDRESS_RANGE_END%/$PI_IP_ADDRESS_RANGE_END/g" "${ROOT_DIR}/first_run.sh"
-sed -i "s/%PI_DNS_ADDRESS%/$PI_DNS_ADDRESS/g" "${ROOT_DIR}/first_run.sh"
+cp ${SETTINGS_FILE} ${ROOT_DIR}${SETUP_DIR}${SETTINGS_FILE}
+cp ./scripts/first_run.sh "${ROOT_DIR}${SETUP_DIR}/first_run.sh"
 
-chmod 755 "${ROOT_DIR}/first_run.sh"
+chmod 755 "${ROOT_DIR}${SETUP_DIR}/first_run.sh"
 cp "${PI_SSH_KEY}" "${ROOT_DIR}/id_rsa.pub"
 cp -Rf ./data "${ROOT_DIR}/opt/data"
-cp -Rf ./scripts/interfaces.py "${ROOT_DIR}/interfaces.py"
+cp -Rf ./scripts/interfaces.py "${ROOT_DIR}${SETUP_DIR}/interfaces.py"
 cp ./files/hosts "${ROOT_DIR}/etc/hosts"
 
 # Set the crontab to update on a daily basis

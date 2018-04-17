@@ -6,28 +6,31 @@ exec 1>&2
 set -x
 set -e
 
+echo "Loading ${SETTINGS_FILE}"
+source ${SETTINGS_FILE}
+
 DATA_DIR=/opt/data
 
 # Delete "pi" user and create another one
-useradd -m %PI_USERNAME% -G sudo || true
-echo "%PI_USERNAME%:%PI_PASSWORD%" | chpasswd
-install -d -m 700 /home/%PI_USERNAME%/.ssh
-mv /id_rsa.pub /home/%PI_USERNAME%/.ssh/authorized_keys
-chown %PI_USERNAME%:%PI_USERNAME% -Rf /home/%PI_USERNAME%/.ssh/
+useradd -m ${PI_USERNAME} -G sudo || true
+echo "${PI_USERNAME}:${PI_PASSWORD}" | chpasswd
+install -d -m 700 /home/${PI_USERNAME}/.ssh
+mv /id_rsa.pub /home/${PI_USERNAME}/.ssh/authorized_keys
+chown ${PI_USERNAME}:${PI_USERNAME} -Rf /home/${PI_USERNAME}/.ssh/
 
-echo "%PI_USERNAME% ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/010_%PI_USERNAME%-nopasswd
+echo "${PI_USERNAME} ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/010_${PI_USERNAME}-nopasswd
 
 rm /etc/sudoers.d/010_pi-nopasswd
 deluser -remove-home pi
 
 # Change user and group ID
-usermod -u 1000 %PI_USERNAME% --shell /bin/bash
-groupmod -g 1000 %PI_USERNAME%
+usermod -u 1000 ${PI_USERNAME} --shell /bin/bash
+groupmod -g 1000 ${PI_USERNAME}
 
 # Configure hostname
 randomWord1=$(shuf ${DATA_DIR}/words.txt -n 1 | sed -e "s/\s/-/g")
 randomWord2=$(shuf ${DATA_DIR}/words.txt -n 1 | sed -e "s/\s/-/g")
-PI_CONFIG_HOSTNAME="%PI_HOSTNAME%-${randomWord1}-${randomWord2}"
+PI_CONFIG_HOSTNAME="${PI_HOSTNAME}-${randomWord1}-${randomWord2}"
 
 echo "${PI_CONFIG_HOSTNAME}" > "/etc/hostname"
 OLD_HOST="raspberrypi"
@@ -35,8 +38,8 @@ sed -i "s/$OLD_HOST/$PI_CONFIG_HOSTNAME/g" "/etc/hosts"
 hostnamectl set-hostname ${PI_CONFIG_HOSTNAME}
 
 # Configure the memory split
-if test "%PI_GPU_MEMORY%" = "16" || test "%PI_GPU_MEMORY%" = "32" || test "%PI_GPU_MEMORY%" = "64" || test "%PI_GPU_MEMORY%" = "128" || test "%PI_GPU_MEMORY%" = "256"; then
-  echo "gpu_mem=%PI_GPU_MEMORY%" >> /boot/config.txt
+if test "${PI_GPU_MEMORY}" = "16" || test "${PI_GPU_MEMORY}" = "32" || test "${PI_GPU_MEMORY}" = "64" || test "${PI_GPU_MEMORY}" = "128" || test "${PI_GPU_MEMORY}" = "256"; then
+  echo "gpu_mem=${PI_GPU_MEMORY}" >> /boot/config.txt
 fi
 
 # Configure static IP address
@@ -46,9 +49,6 @@ pip install netifaces
 
 export TARGET_IP="target_ip"
 export NETWORK_CONFIG="/etc/network/interfaces"
-export PI_IP_ADDRESS_RANGE_START="%PI_IP_ADDRESS_RANGE_START%"
-export PI_IP_ADDRESS_RANGE_END="%PI_IP_ADDRESS_RANGE_END%"
-export PI_DNS_ADDRESS="%PI_DNS_ADDRESS%"
 python /interfaces.py
 
 cat /etc/network/interfaces
@@ -63,26 +63,30 @@ rm ./target_ip
 apt-get remove -y dhcpcd5
 
 # Install Docker
-if "%PI_INSTALL_DOCKER%" -eq "true"; then
+if "${PI_INSTALL_DOCKER}" -eq "true"; then
   curl -sSL https://get.docker.com | CHANNEL=stable sh
-  usermod -aG docker %PI_USERNAME%
+  usermod -aG docker ${PI_USERNAME}
 fi
 
 # Send email telling about this server
-if test "%PI_MAILGUN_API_KEY%" && test "%PI_MAILGUN_DOMAIN%" && test "%PI_EMAIL_ADDRESS%"; then
-  curl -s --user "api:%PI_MAILGUN_API_KEY%" \
-    https://api.mailgun.net/v3/%PI_MAILGUN_DOMAIN%/messages \
-    -F from="%PI_USERNAME%@%PI_MAILGUN_DOMAIN%" \
-    -F to=%PI_EMAIL_ADDRESS% \
+if test "${PI_MAILGUN_API_KEY}" && test "${PI_MAILGUN_DOMAIN}" && test "${PI_EMAIL_ADDRESS}"; then
+  curl -s --user "api:${PI_MAILGUN_API_KEY}" \
+    https://api.mailgun.net/v3/${PI_MAILGUN_DOMAIN}/messages \
+    -F from="${PI_USERNAME}@${PI_MAILGUN_DOMAIN}" \
+    -F to=${PI_EMAIL_ADDRESS} \
     -F subject="New Raspberry Pi (${PI_CONFIG_HOSTNAME}) set up" \
-    -F text="New %PI_USERNAME%@${PI_CONFIG_HOSTNAME} setup on: ${PI_IP_ADDRESS}"
+    -F text="New ${PI_USERNAME}@${PI_CONFIG_HOSTNAME} setup on: ${PI_IP_ADDRESS}"
 fi
 
 # Clean up after ourselves
 apt-get autoremove -y
 apt-get autoclean -y
 
+# Restart the network
+service networking restart
+
 rm -Rf ${DATA_DIR}
+rm -Rf ${SETUP_DIR}
 
 rm -- "$0"
 
